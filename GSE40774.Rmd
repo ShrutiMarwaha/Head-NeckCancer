@@ -1,0 +1,140 @@
+---
+title: "GSE40774"
+author: "Shruti"
+date: "November 19, 2015"
+output: html_document
+---
+**HPV positive vs HPV negative analysis for Head and Neck cancer dataset - GSE40774**
+
+**Load Required Packages**
+```{r Chunk 1: load packages}
+# if a new package from bioconductor has to be installed. write following two commands
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("package name")
+library(GEOquery)
+library(limma)
+#install.packages("rafalib")
+library("rafalib")
+```
+
+**Download Input Data**
+```{r Chunk 2: download data}
+gset40774 <- getGEO("GSE40774", GSEMatrix =TRUE)
+# setwd("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE40774/")
+# save(gset40774,file="./final/gset40774.rda")
+# load("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE40774/final/gset40774.rda")
+```
+
+**Data Munging**
+```{r Chunk 3: data munging}
+GPLid <- levels((gset40774[[1]])$platform_id)
+if (length(gset40774) > 1) 
+{
+  idx <- grep(GPLid, attr(gset40774, "names"))
+} else 
+{ 
+  idx <- 1
+}
+gset40774 <- gset40774[[idx]]
+
+## look at the pattern in which the sample types are arranged. 
+#colnames(pData(gset40774))
+#pData(gset40774)[1:2,]
+#pData(gset40774)[1:2,c(7:8,11:13,17,18,23)]
+#apply(pData(gset40774)[,c(7,11:13,17)],2,table)
+
+# log2 transform
+ex40774 <- exprs(gset40774)
+qx <- as.numeric(quantile(ex40774, c(0., 0.25, 0.5, 0.75, 0.99, 1.0), na.rm=T))
+LogC <- (qx[5] > 100) ||
+  (qx[6]-qx[1] > 50 && qx[2] > 0) ||
+  (qx[2] > 0 && qx[2] < 1 && qx[4] > 1 && qx[4] < 2)
+if (LogC) { ex40774[which(ex40774 <= 0)] <- NaN
+            exprs(gset40774) <- log2(ex40774) }
+
+fvarLabels(gset40774) <- make.names(fvarLabels(gset40774))
+hpv_status <- pData(gset40774)$characteristics_ch1.3
+hpv_status <- sub(pattern="status: ", replacement="", x=hpv_status,ignore.case=T)
+hpv_status <- make.names(hpv_status)
+hpv_status_factors <- factor(hpv_status)
+
+tissues <- pData(gset40774)$characteristics_ch1.1
+tissues <- sub(pattern="anatomic site: ", replacement="", x=tissues,ignore.case=T)
+tissues <- factor(tissues)
+
+sex <- pData(gset40774)$characteristics_ch1.2
+sex <- sub(pattern="gender: ", replacement="", x=sex,ignore.case=T)
+sex <- factor(sex)
+```
+
+**Exploratory Data Analysis**
+```{r Chunk 4: Exploratory Data Analysis}
+distance_matrix_40774 <- dist(t(ex40774)) # very important to take transpose "t"
+mds_40774 <- cmdscale(distance_matrix_40774)
+
+mypar(1,1)
+plot(mds_40774[,1],mds_40774[,2],bg=as.numeric(hpv_status_factors),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: HPV status")
+legend("bottomleft",levels(hpv_status_factors),col=seq(along=levels(hpv_status_factors)),pch=15,cex=1)
+
+plot(mds_40774[,1],mds_40774[,2],bg=as.numeric(tissues),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Anatomical Location")
+legend("bottomleft",levels(tissues),col=seq(along=levels(tissues)),pch=15,cex=0.5)
+
+plot(mds_40774[,1],mds_40774[,2],bg=as.numeric(sex),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Sex Status")
+legend("bottomleft",levels(sex),col=seq(along=levels(sex)),pch=15,cex=1)
+
+hierarchial_cluster_40774 <- hclust(distance_matrix_40774)
+plot(hierarchial_cluster_40774,cex=0.5,lablels=hpv_status_factors)
+plot(hierarchial_cluster_40774,cex=0.5,lablels=tissues)
+plot(hierarchial_cluster_40774,cex=0.5,lablels=sex)
+```
+
+```{r Chunk 5: running limma}
+Group <- factor(hpv_status,levels=c("hpv.neg","hpv.pos")) ## order of levels is important
+design40774 <- model.matrix(~0+Group)
+colnames(design40774) <- c("HPV_negative","HPV_positive")
+# to check order is correct
+#head(design40774)
+#head(pData(gset40774)$characteristics_ch1.3)
+
+## fit linear model for each gene given a series of arrays
+fit <- lmFit(gset40774, design40774)
+
+## tell which levels should be compared
+colnames(design40774)
+cont.matrix <- makeContrasts(HPV_positive-HPV_negative, levels=design40774)
+
+## given a linear model fit to microarray data, compute estimated coefficients & standard errors for given set of contratsts
+fit2 <- contrasts.fit(fit, cont.matrix)
+fit2 <- eBayes(fit2, 0.01)
+
+## to get the no.of genes in each array
+nrow40774 <- length(featureNames(gset40774))
+tT <- topTable(fit2, adjust="fdr", sort.by="logFC",number=nrow40774)
+colnames(tT)
+tT <- subset(tT, select=c("ID","adj.P.Val","P.Value","logFC","t","B","AveExpr","GENE","GENE_SYMBOL","GENE_NAME"))
+```
+
+```{r Chunk 6: function to remove rows which are not associated with any gene }
+RemoveRows <- function(MatrixName,ColumnName){ #ColumnName is name of column containing gene id
+  # remove rows that contain "NA" in any column
+  complete <- complete.cases(MatrixName)
+  Matrix_complete <- MatrixName[complete,]
+  # remove rows that contain "" in column for gene id
+  nonempty_gene_ids <- Matrix_complete[,ColumnName]!=""
+  Matrix2 <- Matrix_complete[nonempty_gene_ids,]
+  
+  return(Matrix2)
+}
+tT2 <- RemoveRows(tT,"GENE")
+
+# volcano plot
+plot(tT2$logFC,-log10(tT2$adj.P.Val), xlab="Effect size",ylab="- log (base 10) adj.p-values",main="Volcano Plot for HPVpositive vs HPVnegative")
+
+Gse40774DEGFinal <- subset(tT2,adj.P.Val<0.05 & abs(logFC)>0.585,)
+# write.table(Gse40774DEGFinal, file="./rough/Gse40774DEGFinal.txt", row.names=F, sep="\t")
+# save(Gse40774DEGFinal, file="./rough/Gse40774DEGFinal.rda")
+```
+
+
+
+
