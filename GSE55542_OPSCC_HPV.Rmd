@@ -1,0 +1,206 @@
+---
+title: "GSE55542_OPSCC_HPV"
+author: "Shruti"
+date: "November 20, 2015"
+output: html_document
+---
+
+**HPV positive vs HPV negative analysis for Head and Neck cancer (OroPharyngeal Squamous Cell Carcinoma) dataset - GSE55542** 
+
+**Load Required Packages**
+```{r Chunk 1: load packages}
+# if a new package from bioconductor has to be installed. write following two commands
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("package name")
+library(GEOquery)
+library(limma)
+#install.packages("rafalib")
+library("rafalib")
+```
+
+**Download input data**
+```{r Chunk 2: download input data}
+gset55542 <- getGEO("GSE55542", GSEMatrix =TRUE)
+#setwd("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE55542/")
+#save(gset55542,file="./final/gset55542.rda")
+#load("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE55542/final/gset55542.rda")
+```
+
+**Data Munging**
+```{r Chunk 3: data munging}
+GPLid <- levels((gset55542[[1]])$platform_id)
+if (length(gset55542) > 1) 
+{
+  idx <- grep(GPLid, attr(gset55542, "names"))
+} else 
+{ 
+  idx <- 1
+}
+gset55542 <- gset55542[[idx]]
+
+# log2 transform
+ex55542 <- exprs(gset55542)
+qx <- as.numeric(quantile(ex55542, c(0., 0.25, 0.5, 0.75, 0.99, 1.0), na.rm=T))
+LogC <- (qx[5] > 100) ||
+  (qx[6]-qx[1] > 50 && qx[2] > 0) ||
+  (qx[2] > 0 && qx[2] < 1 && qx[4] > 1 && qx[4] < 2)
+if (LogC) { ex55542[which(ex55542 <= 0)] <- NaN
+            exprs(gset55542) <- log2(ex55542) }
+
+## look at the pattern in which the sample types are arranged. 
+#colnames(pData(gset55542))
+#pData(gset55542)[1:2,]
+#pData(gset55542)[1:2,c(1,2,7,8,10,11,13,19,20)]
+#apply(pData(gset55542)[,c(1,8,10,11)],2,table)
+
+sample_information <- pData(gset55542)[,c(1,2,8,10,11)]
+sample_information2 <- sample_information
+sample_information2$source_name_ch1 <- sapply(sample_information2$source_name_ch1,function(i) {sub("Oropharyngeal squamous cell carcinoma - ","",i)})
+sample_information2$characteristics_ch1 <- sapply(sample_information2$characteristics_ch1,function(i) {sub("gender: ","",i)})
+sample_information2$characteristics_ch1.1 <- sapply(sample_information2$characteristics_ch1.1,function(i) {sub("race: ","",i)})
+
+HPV_status <- factor(sample_information2$source_name_ch1)
+```
+
+**Exploratory Data Analysis for all samples**
+```{r Chunk 4: Exploratory Data Analysis for all samples}
+# MultiDimension Scaling plots
+dist_matrix_55542 <- dist(t(ex55542)) # very important to take transpose "t"
+mds_55542 <- cmdscale(dist_matrix_55542)
+
+mypar(1,1)
+plot(mds_55542[,1],mds_55542[,2],bg=as.numeric(HPV_status),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: HPV status")
+legend("topright",levels(HPV_status),col=seq(along=levels(HPV_status)),pch=15,cex=1)
+identify(mds_55542)
+sample_information2[14,]
+
+plot(mds_55542[,1],mds_55542[,2],bg=as.numeric(factor(sample_information$characteristics_ch1)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Gender")
+legend("bottomleft",levels(factor(sample_information$characteristics_ch1)),col=seq(along=levels(factor(sample_information$characteristics_ch1))),pch=15,cex=0.8)
+
+plot(mds_55542[,1],mds_55542[,2],bg=as.numeric(factor(sample_information$characteristics_ch1.1)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Race")
+legend("topright",levels(factor(sample_information$characteristics_ch1.1)),col=seq(along=levels(factor(sample_information$characteristics_ch1.1))),pch=15,cex=0.8)
+```
+
+**HPV Active Vs HPV Negative**
+```{r Chunk 5: selct only samples for HPV Active and HPV Negative}
+HPVactive_gsmids <- rownames(subset(sample_information2,source_name_ch1=="HPV Active",))
+HPVinactive_gsmids <- rownames(subset(sample_information2,source_name_ch1=="HPV Inactive",))
+HPVnegative_gsmids <- rownames(subset(sample_information2,source_name_ch1=="HPV Negative",))
+sample_information_HPV_active_negative <- sample_information2[c(HPVactive_gsmids,HPVnegative_gsmids),]
+
+gset55542_HPV_active_negative <- gset55542[,c(HPVactive_gsmids,HPVnegative_gsmids)]
+ex55542_HPV_active_negative <- ex55542[,c(HPVactive_gsmids,HPVnegative_gsmids)]
+HPV_status_active_negative <- factor(sample_information_HPV_active_negative$source_name_ch1,levels=c("HPV Negative","HPV Active"))
+  
+dist_matrix_55542_HPV_active_negative <- dist(t(ex55542_HPV_active_negative)) # very important to take transpose "t"
+mds_55542_HPV_active_negative <- cmdscale(dist_matrix_55542_HPV_active_negative)
+
+plot(mds_55542_HPV_active_negative[,1],mds_55542_HPV_active_negative[,2],bg=as.numeric(HPV_status_active_negative),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: HPV status")
+legend("topright",levels(HPV_status_active_negative),col=seq(along=levels(HPV_status_active_negative)),pch=15,cex=1)
+identify(mds_55542_HPV_active_negative)
+c(HPVactive_gsmids,HPVnegative_gsmids)[20]
+sample_information_HPV_active_negative[20,]
+text(mds_55542_HPV_active_negative[,1],mds_55542_HPV_active_negative[,2],labels=rownames(mds_55542_HPV_active_negative),cex=0.8)
+
+hierarchial_cluster_HPV_active_negative <- hclust(dist_matrix_55542_HPV_active_negative)
+plot(hierarchial_cluster_HPV_active_negative,cex=0.8,main="Hierarchical clustering of samples")
+plot(hierarchial_cluster_HPV_active_negative,cex=0.8,main="Hierarchical clustering of samples",label=HPV_status_active_negative)
+sample_information_HPV_active_negative[c("GSM1338957","GSM1338940"),]
+sample_information_HPV_active_negative[c("GSM1338960","GSM1338936"),]
+
+plot(mds_55542_HPV_active_negative[,1],mds_55542_HPV_active_negative[,2],bg=as.numeric(factor(sample_information_HPV_active_negative$characteristics_ch1.1)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Race status")
+legend("topleft",levels(factor(sample_information_HPV_active_negative$characteristics_ch1.1)),col=seq(along=levels(factor(sample_information_HPV_active_negative$characteristics_ch1.1))),pch=15,cex=1)
+
+# since "GSM1338957" sample is clustering with HPV active samples, remove it from analysis
+#gset55542_HPV_active_negative2 <- gset55542_HPV_active_negative[,-grep("GSM1338957",sampleNames(gset55542_HPV_active_negative))]
+gset55542_HPV_active_negative2 <- gset55542_HPV_active_negative[,-20]
+ex55542_HPV_active_negative2 <- ex55542_HPV_active_negative[,-20] 
+sample_information_HPV_active_negative2 <- sample_information_HPV_active_negative[,-20]
+HPV_status_active_negative2 <- HPV_status_active_negative[-20]
+
+dist_matrix_55542_HPV_active_negative2 <- dist(t(ex55542_HPV_active_negative2)) # very important to take transpose "t"
+mds_55542_HPV_active_negative2 <- cmdscale(dist_matrix_55542_HPV_active_negative2)
+
+plot(mds_55542_HPV_active_negative2[,1],mds_55542_HPV_active_negative2[,2],bg=as.numeric(HPV_status_active_negative2),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: HPV status")
+legend("topright",levels(HPV_status_active_negative2),col=seq(along=levels(HPV_status_active_negative2)),pch=15,cex=1)
+```
+
+```{r Chunk 6: functiont to run limma}
+RunLimma <- function(gset,groups){
+  design_matrix <- model.matrix(~0+groups)
+  colnames(design_matrix) <- c("CONTROL","TREATMENT")
+  # to check order is correct
+  # head(design_matrix)
+  
+  ## fit linear model for each gene given a series of arrays
+  fit <- lmFit(gset, design_matrix)
+  
+  ## tell which levels should be compared
+  colnames(design_matrix)
+  cont.matrix <- makeContrasts(TREATMENT-CONTROL, levels=design_matrix)
+  
+  ## given a linear model fit to microarray data, compute estimated coefficients & standard errors for given set of contratsts
+  fit2 <- contrasts.fit(fit, cont.matrix)
+  fit2 <- eBayes(fit2, 0.01)
+  
+  ## to get the no.of genes in each array
+  nrow_gset <- length(featureNames(gset))
+  tT <- topTable(fit2, adjust="fdr", sort.by="logFC",number=nrow_gset)
+  colnames(tT)
+  tT <- subset(tT, select=c("ID","adj.P.Val","P.Value","logFC","t","B","AveExpr","GENE_SYMBOL","GENE_NAME","ENSEMBL_ID","REFSEQ","GB_ACC","UNIGENE_ID"))
+  return(tT)
+}
+
+# HPVpositive vs HPVnegative
+gse55542_HPV_positiveVsnegative <- RunLimma(gset55542_HPV_active_negative2,HPV_status_active_negative2)
+
+# volcano plot
+plot(gse55542_HPV_positiveVsnegative$logFC,-log10(gse55542_HPV_positiveVsnegative$adj.P.Val), xlab="Effect size",ylab="- log (base 10) adj.p-values",main="Volcano Plot for HPVpositive vs HPVnegative")
+```
+
+```{r Chunk 7: Annotation - find "ENTREZ_GENE_ID" corresponding to each probe id}
+library("biomaRt")
+listMarts(host="www.ensembl.org")
+database <- useMart("ENSEMBL_MART_ENSEMBL",dataset="hsapiens_gene_ensembl", host="www.ensembl.org")
+listDatasets(database)[grep("sapiens",listDatasets(database)$description,),]
+
+## Filters (one or more) that should be used in the query. So first check what do the probes represent.
+#pData(gset55542)[1,c(12:20)]
+#pData(gset55542)[1,"hyb_protocol"] # "Agilent-039494 SurePrint G3 Human GE v2 8x60K Microarray (G4858A-039494)"
+#head(gse55542_HPV_positiveVsnegative$ID)
+filters <- listFilters(database)
+#head(filters)
+filters[grep("agilent",filters$description,ignore.case=T),]
+filters[179,]
+
+## attribites are values that you are interested in to retrieve
+attributes <- listAttributes(database)
+#head(attributes)
+grep("entrez",attributes$description,ignore.case=T)
+grep("UNIGENE",attributes$description,ignore.case=T)
+grep("symbol",attributes$description,ignore.case=T)
+grep("agilent",attributes$description,ignore.case=T)
+attributes[c(1,58,59,65,91,100:103,123),]
+
+gene_ids <- getBM(attributes=c("entrezgene","unigene","efg_agilent_sureprint_g3_ge_8x60k_v2"), filters="efg_agilent_sureprint_g3_ge_8x60k_v2", values=gse55542_HPV_positiveVsnegative$ID, mart=database, uniqueRows=T)
+gse55542_HPV_positiveVsnegative2 <- merge(gse55542_HPV_positiveVsnegative,gene_ids,by.x="ID",by.y="efg_agilent_sureprint_g3_ge_8x60k_v2",all.x=T)
+```
+
+```{r Chunk 8: function to remove rows which are not associated with any gene }
+RemoveRows <- function(MatrixName,ColumnName){ #ColumnName is name of column containing gene id
+  # remove rows that contain "NA" in any column
+  complete <- complete.cases(MatrixName)
+  Matrix_complete <- MatrixName[complete,]
+  # remove rows that contain "" in column for gene id
+  nonempty_gene_ids <- Matrix_complete[,ColumnName]!=""
+  Matrix2 <- Matrix_complete[nonempty_gene_ids,]
+  
+  return(Matrix2)
+}
+
+gse55542_HPV_positiveVsnegative3 <- RemoveRows(gse55542_HPV_positiveVsnegative2,"entrezgene")
+DEG_gse55542_HPV_positiveVsnegative <- subset(gse55542_HPV_positiveVsnegative3,adj.P.Val<0.05 & abs(logFC)>0.585,)
+#write.table(DEG_gse55542_HPV_positiveVsnegative, file="./rough/DEG_gse55542_HPV_positiveVsnegative.txt", row.names=F, sep="\t")
+#save(DEG_gse55542_HPV_positiveVsnegative, file="./rough/DEG_gse55542_HPV_positiveVsnegative.rda")
+```
+
