@@ -1,0 +1,162 @@
+---
+title: "GSE65858_HNSCC_HPV"
+author: "Shruti"
+date: "November 20, 2015"
+output: html_document
+---
+
+**HPV positive vs HPV negative analysis for Head and Neck cancer dataset - GSE65858** 
+
+**Load Required Packages**
+```{r Chunk 1: load packages}
+# if a new package from bioconductor has to be installed. write following two commands
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("package name")
+library(GEOquery)
+library(limma)
+#install.packages("rafalib")
+library("rafalib")
+```
+
+**Download Input Data**
+```{r Chunk 2: download data}
+gset65858 <- getGEO("GSE65858", GSEMatrix =TRUE)
+#setwd("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE65858/")
+#save(gset65858,file="/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE65858/final/gset65858.rda")
+#load("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE65858/final/gset65858.rda")
+```
+
+**Data Munging**
+```{r Chunk 3: data munging}
+GPLid <- levels((gset65858[[1]])$platform_id)
+if (length(gset65858) > 1) 
+{
+  idx <- grep(GPLid, attr(gset65858, "names"))
+} else 
+{ 
+  idx <- 1
+}
+gset65858 <- gset65858[[idx]]
+
+#colnames(pData(gset65858))
+#pData(gset65858)[1:2,]
+#pData(gset65858)[1:2,c(11:18,21:24,62)]
+#apply(pData(gset65858)[,c(11,13:18,21:24,62)],2,table)
+
+# log2 transform
+ex65858 <- exprs(gset65858)
+qx <- as.numeric(quantile(ex65858, c(0., 0.25, 0.5, 0.75, 0.99, 1.0), na.rm=T))
+LogC <- (qx[5] > 100) ||
+  (qx[6]-qx[1] > 50 && qx[2] > 0) ||
+  (qx[2] > 0 && qx[2] < 1 && qx[4] > 1 && qx[4] < 2)
+if (LogC) { ex65858[which(ex65858 <= 0)] <- NaN
+            exprs(gset65858) <- log2(ex65858) }
+
+hpv_status <- pData(gset65858)$characteristics_ch1.14
+hpv_status <- sub(pattern="hpv16_dna_rna: ", replacement="", x=hpv_status,ignore.case=T)
+hpv_status_factors <- factor(hpv_status) 
+
+```
+
+**Exploratory Data Analysis for all samples**
+```{r Chunk 4: Exploratory Data Analysis for all samples}
+distance_matrix_65858 <- dist(t(ex65858)) # very important to take transpose "t"
+mds_65858 <- cmdscale(distance_matrix_65858)
+
+mypar(1,1)
+plot(mds_65858[,1],mds_65858[,2],bg=as.numeric(hpv_status_factors),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: HPV status")
+legend("bottomleft",levels(hpv_status_factors),col=seq(along=levels(hpv_status_factors)),pch=15,cex=1)
+```
+
+**HPV Active VS HPV Negative**
+```{r Chunk 5: selct only samples for HPV DNA- and HPV DNA+RNA+}
+table( pData(gset65858)$characteristics_ch1.14)
+hpv_positive <- which(pData(gset65858)$characteristics_ch1.14=="hpv16_dna_rna: DNA+RNA+")
+hpv_negative <- which(pData(gset65858)$characteristics_ch1.14=="hpv16_dna_rna: DNA-")
+gset65858_hpv <- gset65858[,c(hpv_positive,hpv_negative)]
+
+ex65858_hpv <- exprs(gset65858_hpv)
+```
+
+**Exploratory Data Analysis for HPV Active VS HPV Negative**
+```{r Chunk 6: Exploratory Data Analysis for only HPV DNA- and HPV DNA+RNA+ samples}
+hpv_status <- pData(gset65858_hpv)$characteristics_ch1.14
+table(hpv_status)
+hpv_status <- sub(pattern="hpv16_dna_rna: ", replacement="", x=hpv_status,ignore.case=T)
+hpv_status_factors <- factor(hpv_status) 
+
+tissues <- pData(gset65858_hpv)$characteristics_ch1.7
+tissues <- sub(pattern="tumor_site: ", replacement="", x=tissues,ignore.case=T)
+tissues <- factor(tissues)
+
+sex <- pData(gset65858_hpv)$characteristics_ch1.1
+sex <- sub(pattern="gender: ", replacement="", x=sex,ignore.case=T)
+sex <- factor(sex)
+
+distance_matrix_65858_hpv <- dist(t(ex65858_hpv)) # very important to take transpose "t"
+mds_65858_hpv <- cmdscale(distance_matrix_65858_hpv)
+
+plot(mds_65858_hpv[,1],mds_65858_hpv[,2],bg=as.numeric(hpv_status_factors),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: HPV status")
+legend("bottomleft",levels(hpv_status_factors),col=seq(along=levels(hpv_status_factors)),pch=15,cex=0.8)
+table(hpv_status_factors)
+
+plot(mds_65858_hpv[,1],mds_65858_hpv[,2],bg=as.numeric(tissues),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Anatomical Location")
+legend("bottomleft",levels(tissues),col=seq(along=levels(tissues)),pch=15,cex=0.5)
+table(tissues)
+
+plot(mds_65858_hpv[,1],mds_65858_hpv[,2],bg=as.numeric(sex),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Sex Status")
+legend("bottomleft",levels(sex),col=seq(along=levels(sex)),pch=15,cex=1)
+table(sex)
+
+hierarchial_cluster_65858 <- hclust(distance_matrix_65858_hpv)
+plot(hierarchial_cluster_65858,cex=0.5,lablel=hpv_status_factors)
+plot(hierarchial_cluster_65858,cex=0.5,lablel=tissues)
+plot(hierarchial_cluster_65858,cex=0.5,lablel=sex)
+```
+
+```{r Chunk 7: running limma}
+Group <- factor(hpv_status,levels=c("DNA-","DNA+RNA+")) ## order of levels is important
+design65858 <- model.matrix(~0+Group)
+colnames(design65858) <- c("HPV_negative","HPV_positive")
+# to check order is correct
+#head(design65858)
+#head(pData(gset65858_hpv)$characteristics_ch1.14)
+
+## fit linear model for each gene given a series of arrays
+fit <- lmFit(gset65858_hpv, design65858)
+
+## tell which levels should be compared
+colnames(design65858)
+cont.matrix <- makeContrasts(HPV_positive-HPV_negative, levels=design65858)
+
+## given a linear model fit to microarray data, compute estimated coefficients & standard errors for given set of contratsts
+fit2 <- contrasts.fit(fit, cont.matrix)
+fit2 <- eBayes(fit2, 0.01)
+
+## to get the no.of genes in each array
+nrow65858 <- length(featureNames(gset65858_hpv))
+tT <- topTable(fit2, adjust="fdr", sort.by="logFC",number=nrow65858)
+colnames(tT)
+tT <- subset(tT, select=c("ID","adj.P.Val","P.Value","logFC","t","B","AveExpr","Entrez_Gene_ID","Symbol","Definition"))
+```
+
+```{r Chunk 8: function to remove rows which are not associated with any gene }
+RemoveRows <- function(MatrixName,ColumnName){ #ColumnName is name of column containing gene id
+  # remove rows that contain "NA" in any column
+  complete <- complete.cases(MatrixName)
+  Matrix_complete <- MatrixName[complete,]
+  # remove rows that contain "" in column for gene id
+  nonempty_gene_ids <- Matrix_complete[,ColumnName]!=""
+  Matrix2 <- Matrix_complete[nonempty_gene_ids,]
+  
+  return(Matrix2)
+}
+tT2 <- RemoveRows(tT,"Entrez_Gene_ID")
+# select genes with FRD<0.05 and more than 1.5 fold change
+Gse65858DEGFinal <- subset(tT2,adj.P.Val<0.05 & abs(logFC)>0.585,)
+
+# volcano plot
+plot(tT2$logFC,-log10(tT2$adj.P.Val), xlab="Effect size",ylab="- log (base 10) adj.p-values",main="Volcano Plot for HPV Active vs HPV negative")
+```
+
+
