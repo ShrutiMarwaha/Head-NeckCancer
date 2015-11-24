@@ -1,0 +1,178 @@
+---
+title: "GSE3292_HNSCC_HPV"
+author: "Shruti"
+date: "November 20, 2015"
+output: html_document
+---
+
+**HPV positive vs HPV negative analysis for Head and Neck cancer dataset - GSE3292** 
+
+**Load Required Packages**
+```{r Chunk 1: load packages}
+# if a new package from bioconductor has to be installed. write following two commands
+# source("https://bioconductor.org/biocLite.R")
+# biocLite("package name")
+library(GEOquery)
+library(limma)
+#install.packages("rafalib")
+library("rafalib")
+```
+
+**Download input data**
+```{r Chunk 2: download data}
+gset3292 <- getGEO("GSE3292", GSEMatrix =TRUE)
+#setwd("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE3292/")
+#save(gset3292,file="./final/gset3292.rda")
+#load("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE3292/final/gset3292.rda")
+```
+
+**Data Munging**
+```{r Chunk 3: data munging}
+GPLid <- levels((gset3292[[1]])$platform_id)
+if (length(gset3292) > 1) 
+{
+  idx <- grep(GPLid, attr(gset3292, "names"))
+} else 
+{ 
+  idx <- 1
+}
+gset3292 <- gset3292[[idx]]
+
+# log2 transform
+ex3292 <- exprs(gset3292)
+qx <- as.numeric(quantile(ex3292, c(0., 0.25, 0.5, 0.75, 0.99, 1.0), na.rm=T))
+LogC <- (qx[5] > 100) ||
+  (qx[6]-qx[1] > 50 && qx[2] > 0) ||
+  (qx[2] > 0 && qx[2] < 1 && qx[4] > 1 && qx[4] < 2)
+if (LogC) { ex3292[which(ex3292 <= 0)] <- NaN
+            exprs(gset3292) <- log2(ex3292) }
+
+## look at the pattern in which the sample types are arranged. 
+#colnames(pData(gset3292))
+#pData(gset3292)[1:2,]
+#pData(gset3292)[1:2,c(1,2,6,10,16)]
+
+# since HPV information is not available through gset, downlaod its meta data
+dfl3292 <- getGSEDataTables("GSE3292")
+#save(dfl3292,file="./final/dfl3292.rda")
+#load("/Users/shruti/Dropbox/SHRUTIM/Microarray/Microarray_R_Scripts/HNSCC/HPV/GSE3292/final/dfl3292.rda")
+
+#dfl3292[[2]]
+gse3292_metadata <- dfl3292[[2]][complete.cases(dfl3292[[2]]),]
+# find a common column between gse3292_metadata and padata to merge them
+#pData(gset3292)[1:2,]
+#gse3292_metadata[1:2,]
+head(pData(gset3292)[,1])
+head(gse3292_metadata[,1:2])
+# as you can see, Institute and ID from gse3292_metadata and title from pData(gset3292) are similar but not identical.
+titles <- pData(gset3292)$title
+titles <- gsub("\\D+","",titles)
+pData2 <- cbind(titles,pData(gset3292)[,1:2])
+
+# In ID from gse3292_metadata "0" have been removed infront some. In order to make sure it matches titles from pData, one has too add them 
+# add zero infront of entries 16-33. One has to be very careful
+Ids <- gse3292_metadata$ID
+#Ids
+#Ids[16]
+#titles[grep("318",titles)]
+Ids[16] <- paste("000",Ids[16],sep="")
+
+titles[grep("30079",titles)]
+#Ids[33]
+Ids[17:33] <- sapply(Ids[17:33],function(i) {paste("0",i,sep="")},USE.NAMES =F)
+#table(sapply(Ids,nchar))
+gse3292_metadata2 <- cbind(Ids,gse3292_metadata)
+
+# now merge gse3292_metadata and pData(gset3292) # the order of Ids and titles are not same
+#Ids
+#pData2
+# very imp to keep sort as False inorder to maintian the order of gsm ids as in gset
+sample_information <- merge(pData2,gse3292_metadata2,by.x="titles",by.y="Ids",sort=F) 
+#head(sample_information)
+# ensure the order of gsm files in sample_information is same as in gsetfile
+setdiff(pData2$geo_accession,sample_information$geo_accession)
+#apply(sample_information[,c(4,7:12,15,16,17)],2,table)
+
+HPV_status <- factor(sample_information$HPV,levels=c("Negative","Positive"))
+```
+
+**Exploratory Data Analysis**
+```{r Chunk 4: Exploratory Data Analysis for all samples}
+dist_matrix_3292 <- dist(t(ex3292)) # very important to take transpose "t"
+mds_3292 <- cmdscale(dist_matrix_3292)
+
+mypar(1,1)
+plot(mds_3292[,1],mds_3292[,2],bg=as.numeric(HPV_status),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: HPV status")
+legend("bottomleft",levels(HPV_status),col=seq(along=levels(HPV_status)),pch=15,cex=1)
+
+plot(mds_3292[,1],mds_3292[,2],bg=as.numeric(factor(sample_information$Site)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Anatomical Location")
+legend("bottomleft",levels(factor(sample_information$Site)),col=seq(along=levels(factor(sample_information$Site))),pch=15,cex=1)
+
+plot(mds_3292[,1],mds_3292[,2],bg=as.numeric(factor(sample_information$Institute)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Institute")
+legend("bottomleft",levels(factor(sample_information$Institute)),col=seq(along=levels(factor(sample_information$Institute))),pch=15,cex=1)
+
+plot(mds_3292[,1],mds_3292[,2],bg=as.numeric(factor(sample_information$Sex)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Sex Status")
+legend("bottomleft",levels(factor(sample_information$Sex)),col=seq(along=levels(factor(sample_information$Sex))),pch=15,cex=1)
+
+plot(mds_3292[,1],mds_3292[,2],bg=as.numeric(factor(sample_information$Race)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Race")
+legend("bottomleft",levels(factor(sample_information$Race)),col=seq(along=levels(factor(sample_information$Race))),pch=15,cex=1)
+
+plot(mds_3292[,1],mds_3292[,2],bg=as.numeric(factor(sample_information$Tobacco)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Tobacco Status")
+legend("bottomleft",levels(factor(sample_information$Tobacco)),col=seq(along=levels(factor(sample_information$Tobacco))),pch=15,cex=1)
+
+plot(mds_3292[,1],mds_3292[,2],bg=as.numeric(factor(sample_information$Grade)),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling PLot: Grade of Cancer")
+legend("bottomleft",levels(factor(sample_information$Grade)),col=seq(along=levels(factor(sample_information$Grade))),pch=15,cex=1)
+```
+
+```{r Chunk 6: function to run limma}
+RunLimma <- function(gset,groups){
+  design_matrix <- model.matrix(~0+groups)
+  colnames(design_matrix) <- c("CONTROL","TREATMENT")
+  # to check order is correct
+  # head(design_matrix)
+  
+  ## fit linear model for each gene given a series of arrays
+  fit <- lmFit(gset, design_matrix)
+  
+  ## tell which levels should be compared
+  colnames(design_matrix)
+  cont.matrix <- makeContrasts(TREATMENT-CONTROL, levels=design_matrix)
+  
+  ## given a linear model fit to microarray data, compute estimated coefficients & standard errors for given set of contratsts
+  fit2 <- contrasts.fit(fit, cont.matrix)
+  fit2 <- eBayes(fit2, 0.01)
+  
+  ## to get the no.of genes in each array
+  nrow_gset <- length(featureNames(gset))
+  tT <- topTable(fit2, adjust="fdr", sort.by="logFC",number=nrow_gset)
+  colnames(tT)
+  tT <- subset(tT, select=c("ID","adj.P.Val","P.Value","logFC","t","B","AveExpr","ENTREZ_GENE_ID","Gene.Symbol","Gene.Title"))
+  return(tT)
+}
+
+gse3292_HPV_positiveVsnegative <- RunLimma(gset3292,HPV_status)
+```
+
+```{r Chunk 7: function to remove rows which are not associated with any gene }
+RemoveRows <- function(MatrixName,ColumnName){ #ColumnName is name of column containing gene id
+  # remove rows that contain "NA" in any column
+  complete <- complete.cases(MatrixName)
+  Matrix_complete <- MatrixName[complete,]
+  # remove rows that contain "" in column for gene id
+  nonempty_gene_ids <- Matrix_complete[,ColumnName]!=""
+  Matrix2 <- Matrix_complete[nonempty_gene_ids,]
+  
+  return(Matrix2)
+}
+
+gse3292_HPV_positiveVsnegative2 <- RemoveRows(gse3292_HPV_positiveVsnegative,"ENTREZ_GENE_ID")
+# volcano plot
+plot(gse3292_HPV_positiveVsnegative2$logFC,-log10(gse3292_HPV_positiveVsnegative2$adj.P.Val), xlab="Effect size",ylab="- log (base 10) adj.p-values",main="Volcano Plot for HPVpositive vs HPVnegative")
+```
+
+```{r Chunk 9: Save results}
+DEG_gse3292_HPV_positiveVsnegative <- subset(gse3292_HPV_positiveVsnegative2,adj.P.Val<0.05 & abs(logFC)>0.585,)
+#write.table(DEG_gse3292_HPV_positiveVsnegative, file="./rough/DEG_gse3292_HPV_positiveVsnegative.txt", row.names=F, sep="\t")
+#save(DEG_gse3292_HPV_positiveVsnegative, file="./rough/DEG_gse3292_HPV_positiveVsnegative.rda")
+```
+
