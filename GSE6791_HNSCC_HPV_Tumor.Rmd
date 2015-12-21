@@ -153,8 +153,10 @@ legend("bottomleft",levels(HNCancer_HPV_status),col=seq(along=levels(HNCancer_HP
 plot(mds_HNCancer[,1],mds_HNCancer[,2],bg=as.numeric(HNCancer_tissue),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling Plot: anatomical location")
 legend("bottomright",levels(HNCancer_tissue),col=seq(along=levels(HNCancer_tissue)),pch=15,cex=0.8)
 
-plot(mds_HNCancer[,1],mds_HNCancer[,2],bg=as.numeric(HPV_tissue),pch=21,xlab="First dimension",ylab="Second dimension",cex=2,main="MultiDimension Scaling Plot: anatomical location & HPV status")
-legend("bottomright",levels(HPV_tissue),col=seq(along=levels(HPV_tissue)),pch=15,cex=0.8)
+# represent hpv +ve and -ve samples with different symbols and use colors for tissue
+plot(mds_HNCancer[,1],mds_HNCancer[,2],col=as.numeric(HNCancer_tissue),pch=as.numeric(HNCancer_HPV_status),xlab="First dimension",ylab="Second dimension",cex=3,main="MultiDimension Scaling Plot: anatomical location & HPV status")
+legend("bottomright",levels(HNCancer_tissue),col=seq(along=levels(HNCancer_tissue)),pch=15,cex=0.7)
+legend("bottomleft",levels(HNCancer_HPV_status),pch=seq(along=levels(HNCancer_HPV_status)),cex=1)
 ```
 
 **Exploratory Data Analysis for  HPVpositive Tumor vs Normal (HPVnegative)**
@@ -295,7 +297,7 @@ gse6791_HPV_positiveVsnegativeDEGFinal <- subset(gse6791_HPV_positiveVsnegativeD
 length(unique(subset(gse6791_HPV_positiveVsnegativeDEGFinal,logFC>0.585,)$ENTREZ_GENE_ID))
 length(unique(subset(gse6791_HPV_positiveVsnegativeDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID))
 
-# save(gse6791_HPV_positiveVsnegativeDEGFinal, file="./rough/gse6791_HPV_positiveVsnegativeDEGFinal.rda")
+# save(gse6791_HPV_positiveVsnegativeDEGFinal, file="./rough/HPVpositiveVsNegative/gse6791_HPV_positiveVsnegativeDEGFinal.rda")
 # write.table(gse6791_HPV_positiveVsnegativeDEGFinal, file="./rough/gse6791_HPV_positiveVsnegativeDEGFinal.txt", row.names=F, sep="\t")
 
 ```
@@ -355,16 +357,29 @@ length(unique(subset(gse6791_tonsil_cancerVsnormalDEGFinal,logFC>0.585,)$ENTREZ_
 length(unique(subset(gse6791_tonsil_cancerVsnormalDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID))
 ```
 
-** HeatMaps **
-```{r Load packages and common commands for generating heatmaps. Try Heatplus package to add more annotation}
+**HeatMaps**
+```{r Chunk15: Load packages and common commands for generating heatmaps. Try Heatplus package to add more annotation}
 library(RColorBrewer)
 library(gplots)
 # color gradient to represent the expression values of gene 
 hmcol <- colorRampPalette(brewer.pal(9,"GnBu"))(100)
 ```
 
+```{r Chunk 16: Heat map for HPV+ve vs HPV-ve}
+HPVpositiveVsnegative_DEG_ids <- rownames(gse6791_HPV_positiveVsnegativeDEGFinal)
 
-```{r: Heat map for HPV+ve vs normal: TODO: Refine and cooment this chunk}
+# colors to represent different levels represented by columns - here: normal and cancer
+HPVpositiveVsnegative_cols <- palette(brewer.pal(8,"Dark2"))[as.numeric(HNCancer_HPV_status)]
+HNCancer_HPV_status
+HPVpositiveVsnegative_cols
+
+heatmap.2(ex6791_HNCancer[HPVpositiveVsnegative_DEG_ids,], labCol=HNCancer_HPV_status,trace="none",ColSideColors=HPVpositiveVsnegative_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
+# colors to represent different levels represented by columns - here: tissue and hpv status combined
+HPVpositiveVsnegative_cols2 <- palette(brewer.pal(12,"Set3"))[as.numeric(HPV_tissue)]
+heatmap.2(ex6791_HNCancer[HPVpositiveVsnegative_DEG_ids,], labCol=HPV_tissue,trace="none",ColSideColors=HPVpositiveVsnegative_cols2,col=hmcol,margin=c(10,6),cexCol=1.2)
+```
+
+```{r Chunk 17: Heat map for HPV+ve vs normal}
 #DEG_ids <- gse6791_tumorHPVpositiveVsnormalDEGFinal$ID # Dnt do this, it gives wrong results
 tumorHPVpositiveVsnormal_DEG_ids <- rownames(gse6791_tumorHPVpositiveVsnormalDEGFinal)
 tumorHPVpositiveVsnormal_disease_status <- sample_info_tumorHPVpositive_normal$Case
@@ -373,20 +388,19 @@ tumorHPVpositiveVsnormal_tissue_status <- sample_info_tumorHPVpositive_normal$An
 tumorHPVpositiveVsnormal_disease_tissue_status <- paste(tumorHPVpositiveVsnormal_disease_status,tumorHPVpositiveVsnormal_tissue_status,sep="-")
 table(tumorHPVpositiveVsnormal_disease_tissue_status)
 
-
-heatmap(ex6791_tumorHPVpositive_normal[tumorHPVpositiveVsnormal_DEG_ids,],col=hmcol)
 # colors to represent different levels represented by columns - here: normal and cancer
 tumorHPVpositiveVsnormal_cols <- palette(brewer.pal(8,"Dark2"))[as.fumeric(tumorHPVpositiveVsnormal_disease_status)]
 tumorHPVpositiveVsnormal_disease_status
 tumorHPVpositiveVsnormal_cols
-heatmap.2(ex6791_tumorHPVpositive_normal[tumorHPVpositiveVsnormal_DEG_ids,], labCol=tumorHPVpositiveVsnormal_disease_status,trace="none",ColSideColors=tumorHPVpositiveVsnormal_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
+# dendrogram of samples using top 1000 DEG (Differentially Expressed Genes)
+heatmap.2(ex6791_tumorHPVpositive_normal[tumorHPVpositiveVsnormal_DEG_ids,][1:1000,], labCol=tumorHPVpositiveVsnormal_disease_status,trace="none",ColSideColors=tumorHPVpositiveVsnormal_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
 
 # colors to represent different levels represented by columns - here: tissue and cancer status combined
-tumorHPVpositiveVsnormal_cols2 <- palette(brewer.pal(8,"Dark2"))[as.fumeric(tumorHPVpositiveVsnormal_disease_tissue_status)]
-heatmap.2(ex6791_tumorHPVpositive_normal[tumorHPVpositiveVsnormal_DEG_ids,], labCol=tumorHPVpositiveVsnormal_disease_tissue_status,trace="none",ColSideColors=tumorHPVpositiveVsnormal_cols2,col=hmcol,margin=c(12,6),cexCol=1.2)
+tumorHPVpositiveVsnormal_cols2 <- palette(brewer.pal(12,"Set3"))[as.fumeric(tumorHPVpositiveVsnormal_disease_tissue_status)]
+heatmap.2(ex6791_tumorHPVpositive_normal[tumorHPVpositiveVsnormal_DEG_ids,][1:1000,], labCol=tumorHPVpositiveVsnormal_disease_tissue_status,trace="none",ColSideColors=tumorHPVpositiveVsnormal_cols2,col=hmcol,margin=c(12,6),cexCol=1.2)
 ```
 
-```{r Heat map for HPVnegative vs normal: TODO: Refine and cooment this chunk}
+```{r chunk18: Heat map for HPVnegative vs normal}
 tumorHPVnegativeVsnormal_DEG_ids <- rownames(gse6791_tumorHPVnegativeVsnormalDEGFinal)
 
 tumorHPVnegativeVsnormal_disease_status <- sample_info_tumorHPVnegative_normal$Case
@@ -402,7 +416,7 @@ tumorHPVnegativeVsnormal_disease_status
 heatmap.2(ex6791_tumorHPVnegative_normal[tumorHPVnegativeVsnormal_DEG_ids,], labCol=tumorHPVnegativeVsnormal_disease_status,trace="none",ColSideColors=tumorHPVnegativeVsnormal_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
 
 # colors to represent different levels represented by columns - here: tissue and cancer status combined
-tumorHPVnegativeVsnormal_cols2 <- palette(brewer.pal(8,"Dark2"))[as.fumeric(tumorHPVnegativeVsnormal_disease_tissue_status)]
+tumorHPVnegativeVsnormal_cols2 <- palette(brewer.pal(12,"Set3"))[as.fumeric(tumorHPVnegativeVsnormal_disease_tissue_status)]
 heatmap.2(ex6791_tumorHPVnegative_normal[tumorHPVnegativeVsnormal_DEG_ids,], labCol=tumorHPVnegativeVsnormal_disease_tissue_status,trace="none",ColSideColors=tumorHPVnegativeVsnormal_cols2,col=hmcol,margin=c(12,6),cexCol=1.2)
 ```
 
