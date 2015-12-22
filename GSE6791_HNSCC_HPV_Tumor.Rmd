@@ -282,6 +282,15 @@ RemoveRows <- function(MatrixName,ColumnName){ #ColumnName is name of column con
   nonempty_gene_ids <- Matrix_complete[,ColumnName]!=""
   Matrix2 <- Matrix_complete[nonempty_gene_ids,]
   
+# if GeneID contains more than 1 id, remove additional ones
+  if (length(grep("/",Matrix2[,ColumnName])>0))
+  {
+    GeneIds <- unlist(lapply(Matrix2[,ColumnName],function(x) {
+      sub("[ ]/.+","",x)
+    }))
+    Matrix2[,ColumnName] <- GeneIds
+  }   
+  
   return(Matrix2)
 }
 ```
@@ -294,11 +303,13 @@ gse6791_HPV_positiveVsnegativeDEG <- RemoveRows(gse6791_HPV_positiveVsnegative,"
 plot(gse6791_HPV_positiveVsnegativeDEG$logFC,-log10(gse6791_HPV_positiveVsnegativeDEG$adj.P.Val), xlab="Effect size",ylab="- log (base 10) adj.p-values",main="HPVpositive vs HPVnegative")
 
 gse6791_HPV_positiveVsnegativeDEGFinal <- subset(gse6791_HPV_positiveVsnegativeDEG,adj.P.Val<0.05 & abs(logFC)>0.585,)
-length(unique(subset(gse6791_HPV_positiveVsnegativeDEGFinal,logFC>0.585,)$ENTREZ_GENE_ID))
-length(unique(subset(gse6791_HPV_positiveVsnegativeDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID))
+gse6791_HPV_positiveVsnegative_up <- unique(subset(gse6791_HPV_positiveVsnegativeDEGFinal,logFC>0.585,)$ENTREZ_GENE_ID)
+gse6791_HPV_positiveVsnegative_down <- unique(subset(gse6791_HPV_positiveVsnegativeDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID)
+length(gse6791_HPV_positiveVsnegative_up)
+length(gse6791_HPV_positiveVsnegative_down)
 
 # save(gse6791_HPV_positiveVsnegativeDEGFinal, file="./rough/HPVpositiveVsNegative/gse6791_HPV_positiveVsnegativeDEGFinal.rda")
-# write.table(gse6791_HPV_positiveVsnegativeDEGFinal, file="./rough/gse6791_HPV_positiveVsnegativeDEGFinal.txt", row.names=F, sep="\t")
+# write.table(gse6791_HPV_positiveVsnegativeDEGFinal, file="./rough/HPVpositiveVsNegative/gse6791_HPV_positiveVsnegativeDEGFinal.txt", row.names=F, sep="\t")
 
 ```
 
@@ -322,12 +333,13 @@ gse6791_tumorHPVpositiveVsnormalDEG <- RemoveRows(gse6791_tumorHPVpositiveVsnorm
 plot(gse6791_tumorHPVpositiveVsnormalDEG$logFC,-log10(gse6791_tumorHPVpositiveVsnormalDEG$adj.P.Val), xlab="Effect size",ylab="- log (base 10) adj.p-values",main="HPVpositive Tumor vs Normal")
 
 gse6791_tumorHPVpositiveVsnormalDEGFinal <- subset(gse6791_tumorHPVpositiveVsnormalDEG,adj.P.Val<0.05 & abs(logFC)>0.585,)
-length(unique(subset(gse6791_tumorHPVpositiveVsnormalDEGFinal,logFC>0.585,)$ENTREZ_GENE_ID))
-length(unique(subset(gse6791_tumorHPVpositiveVsnormalDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID))
+gse6791_tumorHPVpositiveVsnormal_up <- unique(subset(gse6791_tumorHPVpositiveVsnormalDEGFinal,logFC>0.585,)$ENTREZ_GENE_ID)
+gse6791_tumorHPVpositiveVsnormal_down <- unique(subset(gse6791_tumorHPVpositiveVsnormalDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID)
+length(gse6791_tumorHPVpositiveVsnormal_up)
+length(gse6791_tumorHPVpositiveVsnormal_down)
 
 # save(gse6791_tumorHPVpositiveVsnormalDEGFinal, file="./rough/tumorHPVpositiveVsnormal/gse6791_tumorHPVpositiveVsnormalDEGFinal.rda")
 # write.table(gse6791_tumorHPVpositiveVsnormalDEGFinal, file="./rough/tumorHPVpositiveVsnormal/gse6791_tumorHPVpositiveVsnormalDEGFinal.txt", row.names=F, sep="\t")
-
 ```
 
 **HPVnegative Tumor vs Normal**
@@ -338,8 +350,10 @@ gse6791_tumorHPVnegativeVsnormalDEG <- RemoveRows(gse6791_tumorHPVnegativeVsnorm
 plot(gse6791_tumorHPVnegativeVsnormalDEG$logFC,-log10(gse6791_tumorHPVnegativeVsnormalDEG$adj.P.Val), xlab="Effect size",ylab="- log (base 10) adj.p-values",main="HPVnegative Tumor vs Normal")
 
 gse6791_tumorHPVnegativeVsnormalDEGFinal <- subset(gse6791_tumorHPVnegativeVsnormalDEG,adj.P.Val<0.05 & abs(logFC)>0.585,)
-length(unique(subset(gse6791_tumorHPVnegativeVsnormalDEGFinal,logFC>0.585,)$ENTREZ_GENE_ID))
-length(unique(subset(gse6791_tumorHPVnegativeVsnormalDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID))
+gse6791_tumorHPVnegativeVsnormal_up <- unique(subset(gse6791_tumorHPVnegativeVsnormalDEGFinal,logFC>0.585,)$ENTREZ_GENE_ID)
+gse6791_tumorHPVnegativeVsnormal_down <- unique(subset(gse6791_tumorHPVnegativeVsnormalDEGFinal,logFC<(-0.585),)$ENTREZ_GENE_ID)
+length(gse6791_tumorHPVnegativeVsnormal_up)
+length(gse6791_tumorHPVnegativeVsnormal_down)
 
 # save(gse6791_tumorHPVnegativeVsnormalDEGFinal, file="./rough/tumorHPVnegativeVsnormal/gse6791_tumorHPVnegativeVsnormalDEGFinal.rda")
 # write.table(gse6791_tumorHPVnegativeVsnormalDEGFinal, file="./rough/tumorHPVnegativeVsnormal/gse6791_tumorHPVnegativeVsnormalDEGFinal.txt", row.names=F, sep="\t")
@@ -365,13 +379,14 @@ library(gplots)
 hmcol <- colorRampPalette(brewer.pal(9,"GnBu"))(100)
 ```
 
+**HPVpositive vs HPVnegative Heatmap**
 ```{r Chunk 16: Heat map for HPV+ve vs HPV-ve}
 HPVpositiveVsnegative_DEG_ids <- rownames(gse6791_HPV_positiveVsnegativeDEGFinal)
 
 # colors to represent different levels represented by columns - here: normal and cancer
 HPVpositiveVsnegative_cols <- palette(brewer.pal(8,"Dark2"))[as.numeric(HNCancer_HPV_status)]
-HNCancer_HPV_status
-HPVpositiveVsnegative_cols
+#HNCancer_HPV_status
+#HPVpositiveVsnegative_cols
 
 heatmap.2(ex6791_HNCancer[HPVpositiveVsnegative_DEG_ids,], labCol=HNCancer_HPV_status,trace="none",ColSideColors=HPVpositiveVsnegative_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
 # colors to represent different levels represented by columns - here: tissue and hpv status combined
@@ -379,6 +394,7 @@ HPVpositiveVsnegative_cols2 <- palette(brewer.pal(12,"Set3"))[as.numeric(HPV_tis
 heatmap.2(ex6791_HNCancer[HPVpositiveVsnegative_DEG_ids,], labCol=HPV_tissue,trace="none",ColSideColors=HPVpositiveVsnegative_cols2,col=hmcol,margin=c(10,6),cexCol=1.2)
 ```
 
+**HPVpositive vs Normal Heatmap**
 ```{r Chunk 17: Heat map for HPV+ve vs normal}
 #DEG_ids <- gse6791_tumorHPVpositiveVsnormalDEGFinal$ID # Dnt do this, it gives wrong results
 tumorHPVpositiveVsnormal_DEG_ids <- rownames(gse6791_tumorHPVpositiveVsnormalDEGFinal)
@@ -386,12 +402,12 @@ tumorHPVpositiveVsnormal_disease_status <- sample_info_tumorHPVpositive_normal$C
 tumorHPVpositiveVsnormal_disease_status <- gsub("HN ","",tumorHPVpositiveVsnormal_disease_status)
 tumorHPVpositiveVsnormal_tissue_status <- sample_info_tumorHPVpositive_normal$Anatomical.sites
 tumorHPVpositiveVsnormal_disease_tissue_status <- paste(tumorHPVpositiveVsnormal_disease_status,tumorHPVpositiveVsnormal_tissue_status,sep="-")
-table(tumorHPVpositiveVsnormal_disease_tissue_status)
+#table(tumorHPVpositiveVsnormal_disease_tissue_status)
 
 # colors to represent different levels represented by columns - here: normal and cancer
 tumorHPVpositiveVsnormal_cols <- palette(brewer.pal(8,"Dark2"))[as.fumeric(tumorHPVpositiveVsnormal_disease_status)]
-tumorHPVpositiveVsnormal_disease_status
-tumorHPVpositiveVsnormal_cols
+#tumorHPVpositiveVsnormal_disease_status
+#tumorHPVpositiveVsnormal_cols
 # dendrogram of samples using top 1000 DEG (Differentially Expressed Genes)
 heatmap.2(ex6791_tumorHPVpositive_normal[tumorHPVpositiveVsnormal_DEG_ids,][1:1000,], labCol=tumorHPVpositiveVsnormal_disease_status,trace="none",ColSideColors=tumorHPVpositiveVsnormal_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
 
@@ -400,6 +416,7 @@ tumorHPVpositiveVsnormal_cols2 <- palette(brewer.pal(12,"Set3"))[as.fumeric(tumo
 heatmap.2(ex6791_tumorHPVpositive_normal[tumorHPVpositiveVsnormal_DEG_ids,][1:1000,], labCol=tumorHPVpositiveVsnormal_disease_tissue_status,trace="none",ColSideColors=tumorHPVpositiveVsnormal_cols2,col=hmcol,margin=c(12,6),cexCol=1.2)
 ```
 
+**HPVnegative vs normal Heatmap**
 ```{r chunk18: Heat map for HPVnegative vs normal}
 tumorHPVnegativeVsnormal_DEG_ids <- rownames(gse6791_tumorHPVnegativeVsnormalDEGFinal)
 
@@ -407,16 +424,131 @@ tumorHPVnegativeVsnormal_disease_status <- sample_info_tumorHPVnegative_normal$C
 tumorHPVnegativeVsnormal_disease_status <- gsub("HN ","",tumorHPVnegativeVsnormal_disease_status)
 tumorHPVnegativeVsnormal_tissue_status <- sample_info_tumorHPVnegative_normal$Anatomical.sites
 tumorHPVnegativeVsnormal_disease_tissue_status <- paste(tumorHPVnegativeVsnormal_disease_status,tumorHPVnegativeVsnormal_tissue_status,sep="-")
-table(tumorHPVnegativeVsnormal_disease_tissue_status)
+#table(tumorHPVnegativeVsnormal_disease_tissue_status)
 
 # colors to represent different levels represented by columns - here: normal and cancer
 tumorHPVnegativeVsnormal_cols <- palette(brewer.pal(8,"Dark2"))[as.fumeric(tumorHPVnegativeVsnormal_disease_status)]
-tumorHPVnegativeVsnormal_cols
-tumorHPVnegativeVsnormal_disease_status
-heatmap.2(ex6791_tumorHPVnegative_normal[tumorHPVnegativeVsnormal_DEG_ids,], labCol=tumorHPVnegativeVsnormal_disease_status,trace="none",ColSideColors=tumorHPVnegativeVsnormal_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
+#tumorHPVnegativeVsnormal_cols
+#tumorHPVnegativeVsnormal_disease_status
+heatmap.2(ex6791_tumorHPVnegative_normal[tumorHPVnegativeVsnormal_DEG_ids,][1:1000,], labCol=tumorHPVnegativeVsnormal_disease_status,trace="none",ColSideColors=tumorHPVnegativeVsnormal_cols,col=hmcol,margin=c(6,6),cexCol=1.5)
 
 # colors to represent different levels represented by columns - here: tissue and cancer status combined
 tumorHPVnegativeVsnormal_cols2 <- palette(brewer.pal(12,"Set3"))[as.fumeric(tumorHPVnegativeVsnormal_disease_tissue_status)]
-heatmap.2(ex6791_tumorHPVnegative_normal[tumorHPVnegativeVsnormal_DEG_ids,], labCol=tumorHPVnegativeVsnormal_disease_tissue_status,trace="none",ColSideColors=tumorHPVnegativeVsnormal_cols2,col=hmcol,margin=c(12,6),cexCol=1.2)
+heatmap.2(ex6791_tumorHPVnegative_normal[tumorHPVnegativeVsnormal_DEG_ids,][1:1000,], labCol=tumorHPVnegativeVsnormal_disease_tissue_status,trace="none",ColSideColors=tumorHPVnegativeVsnormal_cols2,col=hmcol,margin=c(12,6),cexCol=1.2)
 ```
 
+**Gene Signature Based Drug Repurposing: Connectivity Map /LINCS analysis**
+```{r Chunk 19: use biomaRt package to convert entrez ids to hgu1331a afffy probeset ids.}
+library("biomaRt")
+listMarts(host="www.ensembl.org")
+database <- useMart("ENSEMBL_MART_ENSEMBL",dataset="hsapiens_gene_ensembl", host="www.ensembl.org")
+listDatasets(database)[grep("sapiens",listDatasets(database)$description,),]
+
+## Filters (one or more) that should be used in the query. 
+filters <- listFilters(database)
+filters[grep("entrez",filters$description,ignore.case=T),]
+
+## attribites are values that you are interested in to retrieve
+attributes <- listAttributes(database)
+grep("hg.?u.?133.?a",attributes$description,ignore.case=T)
+grep("entrez",attributes$description,ignore.case=T)
+attributes[c(58,59,105,106),]
+```
+
+```{r Chunk 20: function to convert entrez ids to hgu1331a afffy probeset ids}
+GenerateCmapInputList <- function(MatrixName,ColumnName){ #ColumnName is name of column containing gene id
+  # selecting columns
+  CmapInput <- MatrixName[,c(ColumnName,"logFC","adj.P.Val")]
+  CmapInput <- CmapInput[order(-abs(CmapInput$logFC)),]
+ 
+  DEG_EntrezGeneID <- as.character(unique(CmapInput[,ColumnName]))
+  DEG_probesetIDs <- getBM(attributes=c('entrezgene','affy_hg_u133a'), filters = 'entrezgene', values = DEG_EntrezGeneID, mart = database, uniqueRows=T)
+  DEG_probesetIDs <- subset(DEG_probesetIDs,affy_hg_u133a!="")
+  DEG_probesetIDs_FC <- merge(x=CmapInput[,c(ColumnName,"logFC")],y=DEG_probesetIDs,by.x=ColumnName,by.y="entrezgene",sort=F,all.y=F)
+  DEG_probesetIDs_FC <- DEG_probesetIDs_FC[!duplicated(DEG_probesetIDs_FC$affy_hg_u133a),]
+  DEG_probesetIDs_FC <- DEG_probesetIDs_FC[order(-abs(DEG_probesetIDs_FC$logFC)),]
+  
+  return(DEG_probesetIDs_FC)
+}
+```
+
+```{r Chunk 21: Generate Cmap Input List for tumor HPV positive Vs normal}
+gse6791_tumorHPVpositiveVsnormal_CmapInput <- GenerateCmapInputList(gse6791_tumorHPVpositiveVsnormalDEGFinal,"ENTREZ_GENE_ID")
+gse6791_tumorHPVpositiveVsnormal_CmapInput_Up <- subset(gse6791_tumorHPVpositiveVsnormal_CmapInput,logFC>0,)$affy_hg_u133a
+gse6791_tumorHPVpositiveVsnormal_CmapInput_Down <- subset(gse6791_tumorHPVpositiveVsnormal_CmapInput,logFC<0,)$affy_hg_u133a
+## count no.of up and Down DEGs to get idea about iterations you will like to run 
+length(gse6791_tumorHPVpositiveVsnormal_CmapInput_Up)
+length(gse6791_tumorHPVpositiveVsnormal_CmapInput_Down)
+
+# write.table(gse6791_tumorHPVpositiveVsnormal_CmapInput_Up[1:500],file="./rough/tumorHPVpositiveVsnormal/Cmap/gse6791_tumorHPVpositiveVsnormal_CmapInput_Up.grp",sep="\t",quote=F,col.names=F,row.names=F)
+# write.table(gse6791_tumorHPVpositiveVsnormal_CmapInput_Down[1:500],file="./rough/tumorHPVpositiveVsnormal/Cmap/gse6791_tumorHPVpositiveVsnormal_CmapInput_Down.grp",sep="\t",quote=F,col.names=F,row.names=F)
+```
+
+```{r Chunk 21: Generate Cmap Input List for tumor HPV negative Vs normal}
+gse6791_tumorHPVnegativeVsnormal_CmapInput <- GenerateCmapInputList(gse6791_tumorHPVnegativeVsnormalDEGFinal,"ENTREZ_GENE_ID")
+gse6791_tumorHPVnegativeVsnormal_CmapInput_Up <- subset(gse6791_tumorHPVnegativeVsnormal_CmapInput,logFC>0,)$affy_hg_u133a
+gse6791_tumorHPVnegativeVsnormal_CmapInput_Down <- subset(gse6791_tumorHPVnegativeVsnormal_CmapInput,logFC<0,)$affy_hg_u133a
+## count no.of up and Down DEGs to get idea about iterations you will like to run 
+length(gse6791_tumorHPVnegativeVsnormal_CmapInput_Up)
+length(gse6791_tumorHPVnegativeVsnormal_CmapInput_Down)
+
+# write.table(gse6791_tumorHPVnegativeVsnormal_CmapInput_Up[1:500],file="./rough/tumorHPVnegativeVsnormal/Cmap/gse6791_tumorHPVnegativeVsnormal_CmapInput_Up.grp",sep="\t",quote=F,col.names=F,row.names=F)
+# write.table(gse6791_tumorHPVnegativeVsnormal_CmapInput_Down[1:500],file="./rough/tumorHPVnegativeVsnormal/Cmap/gse6791_tumorHPVnegativeVsnormal_CmapInput_Down.grp",sep="\t",quote=F,col.names=F,row.names=F)
+```
+
+```{r Chunk 21: Generate Cmap Input List for HPV positive tumor Vs HPV negative tumor}
+gse6791_HPV_positiveVsnegative_CmapInput <- GenerateCmapInputList(gse6791_HPV_positiveVsnegativeDEGFinal,"ENTREZ_GENE_ID")
+gse6791_HPV_positiveVsnegative_CmapInput_Up <- subset(gse6791_HPV_positiveVsnegative_CmapInput,logFC>0,)$affy_hg_u133a
+gse6791_HPV_positiveVsnegative_CmapInput_Down <- subset(gse6791_HPV_positiveVsnegative_CmapInput,logFC<0,)$affy_hg_u133a
+## count no.of up and Down DEGs to get idea about iterations you will like to run 
+length(gse6791_HPV_positiveVsnegative_CmapInput_Up)
+length(gse6791_HPV_positiveVsnegative_CmapInput_Down)
+
+# write.table(gse6791_HPV_positiveVsnegative_CmapInput_Up,file="./rough/HPVpositiveVsNegative/Cmap/gse6791_HPV_positiveVsnegative_CmapInput_Up.grp",sep="\t",quote=F,col.names=F,row.names=F)
+# write.table(gse6791_HPV_positiveVsnegative_CmapInput_Down,file="./rough/HPVpositiveVsNegative/Cmap/gse6791_HPV_positiveVsnegative_CmapInput_Down.grp",sep="\t",quote=F,col.names=F,row.names=F)
+```
+
+
+```{r Function create Venn Diagram}
+VennIntersection <- function(inputsets,inputset_names)
+  {
+    l <- length(inputsets) 
+    #total set
+    universe <- c()
+    for(i in 1:l)
+    {
+      universe <- unique(c(universe,inputsets[[i]]))
+    }
+    universe <- sort(universe)
+
+    # Generate a matrix, with the sets in columns and possible letters on rows
+    Counts <- matrix(0, nrow=length(universe), ncol=l)
+    # Populate the said matrix
+    for (i in 1:length(universe)) 
+    {
+      for (j in 1:l)
+      {
+        Counts[i,j] <- universe[i] %in% inputsets[[j]]
+      }
+    }
+
+    # Name the columns with the sample names
+    colnames(Counts) <- inputset_names
+    rownames(Counts) <- universe
+    # Specify the colors for the sets
+    cols<- c("red","green","blue","magenta","cyan","brown")
+    vennDiagram(vennCounts(Counts), circle.col=cols[1:l],cex=c(1,1,0.7),mar=c(4,0,1,0),xpd=T)
+    legend("bottom",inputset_names,fill=cols[1:l],inset=c(-2,0))
+}
+```
+
+```{r MetaAnalysis}
+# Common up DEG between (i) tumorHPVpositiveVsnormal (ii) tumorHPVnegativeVsnormal (iii)HPVpositiveVsnegative
+VennIntersection(list(gse6791_tumorHPVpositiveVsnormal_up,gse6791_tumorHPVnegativeVsnormal_up,gse6791_HPV_positiveVsnegative_up),c("HPV+ve Tumor VS normal","HPV-ve Tumor VS normal","HPV+ve Tumor VS HPV-ve Tumor"))
+# common Down DEG
+VennIntersection(list(gse6791_tumorHPVpositiveVsnormal_down,gse6791_tumorHPVnegativeVsnormal_down,gse6791_HPV_positiveVsnegative_down),c("HPV+ve Tumor VS normal","HPV-ve Tumor VS normal","HPV+ve Tumor VS HPV-ve Tumor"))
+
+# Common up DEG between (i) tumorHPVpositiveVsnormal (ii) tumorHPVnegativeVsnormal
+VennIntersection(list(gse6791_tumorHPVpositiveVsnormal_up,gse6791_tumorHPVnegativeVsnormal_up),c("HPV+ve Tumor VS normal","HPV-ve Tumor VS normal"))
+VennIntersection(list(gse6791_tumorHPVpositiveVsnormal_down,gse6791_tumorHPVnegativeVsnormal_down),c("HPV+ve Tumor VS normal","HPV-ve Tumor VS normal"))
+```
