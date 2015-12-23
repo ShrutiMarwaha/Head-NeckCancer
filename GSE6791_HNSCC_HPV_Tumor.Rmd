@@ -508,7 +508,6 @@ length(gse6791_HPV_positiveVsnegative_CmapInput_Down)
 # write.table(gse6791_HPV_positiveVsnegative_CmapInput_Down,file="./rough/HPVpositiveVsNegative/Cmap/gse6791_HPV_positiveVsnegative_CmapInput_Down.grp",sep="\t",quote=F,col.names=F,row.names=F)
 ```
 
-
 ```{r Function create Venn Diagram}
 VennIntersection <- function(inputsets,inputset_names)
   {
@@ -537,8 +536,8 @@ VennIntersection <- function(inputsets,inputset_names)
     rownames(Counts) <- universe
     # Specify the colors for the sets
     cols<- c("red","green","blue","magenta","cyan","brown")
-    vennDiagram(vennCounts(Counts), circle.col=cols[1:l],cex=c(1,1,0.7),mar=c(4,0,1,0),xpd=T)
-    legend("bottom",inputset_names,fill=cols[1:l],inset=c(-2,0))
+    vennDiagram(vennCounts(Counts), circle.col=cols[1:l],cex=c(1,1,0.7),mar=c(6,0,1,0),xpd=T)
+    legend("bottom",inputset_names,fill=cols[1:l],inset=c(-2,-0.15))
 }
 ```
 
